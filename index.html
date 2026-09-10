@@ -8,6 +8,7 @@
 </head>
 <body>
 
+  <div class="page-layout">
   <section id="main-screen" class="screen">
     <header>
       <h1>Трекер расходов</h1>
@@ -21,6 +22,14 @@
       <div class="balance-card">
         <span class="balance-label">RSD</span>
         <span class="balance-amount" id="balance-rsd">0.00</span>
+      </div>
+    </div>
+
+    <div class="balance-card balance-card-wide">
+      <span class="balance-label">Итого в RSD</span>
+      <div class="rsd-total-row">
+        <span class="balance-amount" id="total-rsd">&mdash;</span>
+        <span class="planned-line">минус <span class="planned-deduction" id="planned-total-rsd">&mdash;</span> = <span class="balance-amount total-rsd-net" id="total-rsd-net">&mdash;</span></span>
       </div>
     </div>
 
@@ -65,7 +74,55 @@
       <h2>История транзакций</h2>
       <ul id="transaction-list" class="transaction-list"></ul>
     </div>
+
+    <div class="card">
+      <h2>Запланированные расходы</h2>
+      <p class="hint">Отдельный список, не влияет на баланс и не хранится вместе с транзакциями.</p>
+      <form id="planned-form">
+        <label>
+          Название
+          <input type="text" id="planned-name" required placeholder="Например, аренда">
+        </label>
+        <div class="form-row">
+          <label>
+            Сумма
+            <input type="number" id="planned-amount" step="0.01" min="0.01" required placeholder="0.00">
+          </label>
+          <label>
+            Валюта
+            <select id="planned-currency">
+              <option value="EUR" selected>EUR</option>
+              <option value="RSD">RSD</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          Дата
+          <input type="date" id="planned-date" required>
+        </label>
+        <button type="submit">Добавить</button>
+      </form>
+      <ul id="planned-list" class="transaction-list"></ul>
+    </div>
   </section>
+
+  <aside class="side-panel">
+    <div class="card">
+      <h2>Итого по курсу</h2>
+      <div class="balances balances-column">
+        <div class="balance-card">
+          <span class="balance-label">EUR</span>
+          <span class="balance-amount" id="total-eur">&mdash;</span>
+        </div>
+        <div class="balance-card">
+          <span class="balance-label">RUB</span>
+          <span class="balance-amount" id="total-rub">&mdash;</span>
+        </div>
+      </div>
+      <p class="hint" id="rates-status">Загрузка курса&hellip;</p>
+    </div>
+  </aside>
+  </div>
 
   <script src="app.js"></script>
 </body>
