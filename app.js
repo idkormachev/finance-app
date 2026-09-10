@@ -2,9 +2,23 @@ const STORAGE_KEY = "expense-tracker-transactions";
 
 /**
  * Transaction shape:
- * { id, amount: number, currency: "EUR"|"RSD", category: string,
+ * { id, amount: number, currency: "EUR"|"RSD", category: string, name: string,
  *   date: ISOString, type: "income"|"expense" }
  */
+
+const CATEGORY_EMOJI = {
+  "Еда": "🛒",
+  "Кафе": "☕",
+  "Для дома": "🏠",
+  "Транспорт": "🚗",
+  "Документы": "📄",
+  "Одежда": "👕",
+};
+const DEFAULT_CATEGORY_EMOJI = "🏷️";
+
+function getCategoryEmoji(category) {
+  return CATEGORY_EMOJI[category] || DEFAULT_CATEGORY_EMOJI;
+}
 
 function loadTransactions() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -20,17 +34,22 @@ function saveTransactions(transactions) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
 }
 
-function addTransaction({ amount, currency, category, date, type = "expense" }) {
+function addTransaction({ amount, currency, category, name, date, type = "expense" }) {
   const transactions = loadTransactions();
   transactions.push({
     id: crypto.randomUUID(),
     amount: Number(amount),
     currency,
     category,
+    name,
     date: date || new Date().toISOString(),
     type,
   });
   saveTransactions(transactions);
+}
+
+function removeTransaction(id) {
+  saveTransactions(loadTransactions().filter((tx) => tx.id !== id));
 }
 
 function getBalance(currency) {
@@ -142,8 +161,15 @@ function convert(amount, fromCurrency, toCurrency, rates) {
 
 const txForm = document.getElementById("transaction-form");
 const txDateInput = document.getElementById("tx-date");
+const txCategorySelect = document.getElementById("tx-category");
+const txCategoryCustomWrap = document.getElementById("tx-category-custom-wrap");
+const txCategoryCustomInput = document.getElementById("tx-category-custom");
 
 txDateInput.value = toDatetimeLocalValue(new Date());
+
+txCategorySelect.addEventListener("change", () => {
+  txCategoryCustomWrap.hidden = txCategorySelect.value !== "custom";
+});
 
 txForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -151,10 +177,14 @@ txForm.addEventListener("submit", (e) => {
   const type = document.getElementById("tx-type").value;
   const currency = document.getElementById("tx-currency").value;
   const amount = parseFloat(document.getElementById("tx-amount").value);
-  const category = document.getElementById("tx-category").value.trim();
+  const name = document.getElementById("tx-name").value.trim();
+  const category =
+    txCategorySelect.value === "custom"
+      ? txCategoryCustomInput.value.trim()
+      : txCategorySelect.value;
   const dateValue = txDateInput.value;
 
-  if (!(amount > 0) || !category) {
+  if (!(amount > 0) || !name || !category) {
     return;
   }
 
@@ -162,6 +192,7 @@ txForm.addEventListener("submit", (e) => {
     amount,
     currency,
     category,
+    name,
     date: dateValue ? new Date(dateValue).toISOString() : new Date().toISOString(),
     type,
   });
@@ -169,6 +200,8 @@ txForm.addEventListener("submit", (e) => {
   txForm.reset();
   document.getElementById("tx-type").value = "expense";
   document.getElementById("tx-currency").value = "EUR";
+  txCategorySelect.value = "Еда";
+  txCategoryCustomWrap.hidden = true;
   txDateInput.value = toDatetimeLocalValue(new Date());
 
   renderBalances();
@@ -266,24 +299,54 @@ function renderTransactions() {
     const main = document.createElement("div");
     main.className = "tx-main";
 
-    const category = document.createElement("span");
-    category.className = "tx-category";
-    category.textContent = tx.category;
+    const title = document.createElement("span");
+    title.className = "tx-category";
+    title.title = tx.category;
+
+    const emoji = document.createElement("span");
+    emoji.className = "tx-emoji";
+    emoji.setAttribute("aria-hidden", "true");
+    emoji.textContent = getCategoryEmoji(tx.category);
+
+    title.appendChild(emoji);
+    title.appendChild(document.createTextNode(tx.name || tx.category));
 
     const date = document.createElement("span");
     date.className = "tx-date";
     date.textContent = formatDate(tx.date);
 
-    main.appendChild(category);
+    main.appendChild(title);
     main.appendChild(date);
+
+    const right = document.createElement("div");
+    right.className = "tx-right";
 
     const amount = document.createElement("span");
     amount.className = `tx-amount ${tx.type}`;
     const sign = tx.type === "income" ? "+" : "-";
     amount.textContent = `${sign}${formatAmount(tx.amount)} ${tx.currency}`;
 
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "delete-btn";
+    deleteBtn.textContent = "✕";
+    deleteBtn.setAttribute("aria-label", `Удалить «${tx.name || tx.category}»`);
+    deleteBtn.addEventListener("click", () => {
+      const label = tx.name || tx.category;
+      if (!confirm(`Удалить транзакцию «${label}» на ${formatAmount(tx.amount)} ${tx.currency}?`)) {
+        return;
+      }
+      removeTransaction(tx.id);
+      renderBalances();
+      renderTransactions();
+      renderTotals();
+    });
+
+    right.appendChild(amount);
+    right.appendChild(deleteBtn);
+
     item.appendChild(main);
-    item.appendChild(amount);
+    item.appendChild(right);
     list.appendChild(item);
   }
 }
@@ -411,6 +474,9 @@ function renderPlanned() {
     deleteBtn.textContent = "✕";
     deleteBtn.setAttribute("aria-label", `Удалить «${item.name}»`);
     deleteBtn.addEventListener("click", () => {
+      if (!confirm(`Удалить «${item.name}» на ${formatAmount(item.amount)} ${item.currency}?`)) {
+        return;
+      }
       removePlanned(item.id);
       renderPlanned();
       renderTotals();
@@ -424,6 +490,70 @@ function renderPlanned() {
     list.appendChild(li);
   }
 }
+
+// --- Import / export ---
+
+const exportBtn = document.getElementById("export-btn");
+const importBtn = document.getElementById("import-btn");
+const importFileInput = document.getElementById("import-file-input");
+
+exportBtn.addEventListener("click", () => {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    transactions: loadTransactions(),
+    planned: loadPlanned(),
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `finance-app-export-${toDateInputValue(new Date())}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener("click", () => {
+  importFileInput.click();
+});
+
+importFileInput.addEventListener("change", async () => {
+  const file = importFileInput.files[0];
+  importFileInput.value = "";
+  if (!file) return;
+
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    alert("Не удалось прочитать файл: это не корректный JSON.");
+    return;
+  }
+
+  if (!Array.isArray(data.transactions) || !Array.isArray(data.planned)) {
+    alert("Файл имеет неверный формат: не найдены списки transactions/planned.");
+    return;
+  }
+
+  if (
+    !confirm(
+      `Импортировать данные из файла?\nТранзакций: ${data.transactions.length}, запланированных расходов: ${data.planned.length}.\nТекущие данные будут заменены.`
+    )
+  ) {
+    return;
+  }
+
+  saveTransactions(data.transactions);
+  savePlanned(data.planned);
+
+  renderBalances();
+  renderTransactions();
+  renderPlanned();
+  renderTotals();
+});
 
 // --- Init ---
 

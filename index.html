@@ -9,6 +9,18 @@
 <body>
 
   <div class="page-layout">
+  <aside class="side-panel io-panel">
+    <div class="card">
+      <h2>Импорт / экспорт</h2>
+      <p class="hint">Сохраните все данные в файл или загрузите их обратно. Импорт полностью заменит текущие транзакции и запланированные расходы.</p>
+      <div class="io-buttons">
+        <button type="button" id="export-btn">Экспортировать в файл</button>
+        <button type="button" id="import-btn" class="secondary-btn">Импортировать из файла</button>
+        <input type="file" id="import-file-input" accept="application/json" hidden>
+      </div>
+    </div>
+  </aside>
+
   <section id="main-screen" class="screen">
     <header>
       <h1>Трекер расходов</h1>
@@ -58,8 +70,26 @@
             <input type="number" id="tx-amount" step="0.01" min="0.01" required placeholder="0.00">
           </label>
           <label>
+            Название
+            <input type="text" id="tx-name" required placeholder="Например, обед">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
             Категория
-            <input type="text" id="tx-category" required placeholder="Например, продукты">
+            <select id="tx-category">
+              <option value="Еда">Еда</option>
+              <option value="Кафе">Кафе</option>
+              <option value="Для дома">Для дома</option>
+              <option value="Транспорт">Транспорт</option>
+              <option value="Документы">Документы</option>
+              <option value="Одежда">Одежда</option>
+              <option value="custom">Другое…</option>
+            </select>
+          </label>
+          <label id="tx-category-custom-wrap" hidden>
+            Своя категория
+            <input type="text" id="tx-category-custom" placeholder="Введите категорию">
           </label>
         </div>
         <label>
