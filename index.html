@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Трекер расходов</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <section id="main-screen" class="screen">
+    <header>
+      <h1>Трекер расходов</h1>
+    </header>
+
+    <div class="balances">
+      <div class="balance-card">
+        <span class="balance-label">EUR</span>
+        <span class="balance-amount" id="balance-eur">0.00</span>
+      </div>
+      <div class="balance-card">
+        <span class="balance-label">RSD</span>
+        <span class="balance-amount" id="balance-rsd">0.00</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Новая транзакция</h2>
+      <form id="transaction-form">
+        <div class="form-row">
+          <label>
+            Тип
+            <select id="tx-type">
+              <option value="expense" selected>Расход</option>
+              <option value="income">Доход</option>
+            </select>
+          </label>
+          <label>
+            Валюта
+            <select id="tx-currency">
+              <option value="EUR" selected>EUR</option>
+              <option value="RSD">RSD</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            Сумма
+            <input type="number" id="tx-amount" step="0.01" min="0.01" required placeholder="0.00">
+          </label>
+          <label>
+            Категория
+            <input type="text" id="tx-category" required placeholder="Например, продукты">
+          </label>
+        </div>
+        <label>
+          Дата и время
+          <input type="datetime-local" id="tx-date" required>
+        </label>
+        <button type="submit">Добавить</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>История транзакций</h2>
+      <ul id="transaction-list" class="transaction-list"></ul>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
