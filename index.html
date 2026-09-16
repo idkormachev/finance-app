@@ -84,6 +84,7 @@
               <option value="Транспорт">Транспорт</option>
               <option value="Документы">Документы</option>
               <option value="Одежда">Одежда</option>
+              <option value="Алкоголь">Алкоголь</option>
               <option value="custom">Другое…</option>
             </select>
           </label>
@@ -103,6 +104,24 @@
     <div class="card">
       <h2>История транзакций</h2>
       <ul id="transaction-list" class="transaction-list"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Расходы за месяц</h2>
+      <div class="month-nav">
+        <button type="button" id="month-prev" class="month-arrow" aria-label="Предыдущий месяц">&lsaquo;</button>
+        <span class="month-label" id="month-label">&mdash;</span>
+        <button type="button" id="month-next" class="month-arrow" aria-label="Следующий месяц">&rsaquo;</button>
+      </div>
+      <div class="month-total" id="month-total">&mdash;</div>
+    </div>
+
+    <div class="card">
+      <h2>Расходы по категориям за месяц</h2>
+      <div class="pie-chart-wrap">
+        <div class="pie-chart" id="category-pie"></div>
+        <ul class="pie-legend" id="category-legend"></ul>
+      </div>
     </div>
 
     <div class="card">

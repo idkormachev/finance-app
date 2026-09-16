@@ -13,6 +13,7 @@ const CATEGORY_EMOJI = {
   "Транспорт": "🚗",
   "Документы": "📄",
   "Одежда": "👕",
+  "Алкоголь": "🍷",
 };
 const DEFAULT_CATEGORY_EMOJI = "🏷️";
 
@@ -207,6 +208,7 @@ txForm.addEventListener("submit", (e) => {
   renderBalances();
   renderTransactions();
   renderTotals();
+  renderCharts();
 });
 
 // --- Rendering ---
@@ -263,6 +265,7 @@ async function refreshRates() {
   try {
     const { timestamp, fromCache, stale } = await getRates();
     renderTotals();
+    renderCharts();
     const timeLabel = formatDate(new Date(timestamp).toISOString());
     if (stale) {
       statusEl.textContent = `Не удалось обновить курс, используются старые данные от ${timeLabel}`;
@@ -340,6 +343,7 @@ function renderTransactions() {
       renderBalances();
       renderTransactions();
       renderTotals();
+      renderCharts();
     });
 
     right.appendChild(amount);
@@ -349,6 +353,136 @@ function renderTransactions() {
     item.appendChild(right);
     list.appendChild(item);
   }
+}
+
+// --- Charts (expenses converted to RSD using currentRates) ---
+
+const CATEGORY_COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#dc2626",
+  "#f59e0b",
+  "#7c3aed",
+  "#0891b2",
+  "#db2777",
+  "#65a30d",
+  "#ea580c",
+  "#4338ca",
+];
+
+let monthCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+function getExpensesForMonth(year, month) {
+  let total = 0;
+  for (const tx of loadTransactions()) {
+    if (tx.type !== "expense") continue;
+    const d = new Date(tx.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      total += convert(tx.amount, tx.currency, "RSD", currentRates);
+    }
+  }
+  return total;
+}
+
+function getCategoryBreakdown(year, month) {
+  const totals = new Map();
+  let total = 0;
+  for (const tx of loadTransactions()) {
+    if (tx.type !== "expense") continue;
+    const d = new Date(tx.date);
+    if (d.getFullYear() !== year || d.getMonth() !== month) continue;
+    const amountRsd = convert(tx.amount, tx.currency, "RSD", currentRates);
+    totals.set(tx.category, (totals.get(tx.category) || 0) + amountRsd);
+    total += amountRsd;
+  }
+  const items = [...totals.entries()]
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percent: total > 0 ? (amount / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+  return { total, items };
+}
+
+function renderMonthCard() {
+  const labelEl = document.getElementById("month-label");
+  const totalEl = document.getElementById("month-total");
+
+  const label = monthCursor.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  labelEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+
+  if (!currentRates) {
+    totalEl.textContent = "Загрузка курса…";
+    return;
+  }
+
+  const total = getExpensesForMonth(monthCursor.getFullYear(), monthCursor.getMonth());
+  totalEl.textContent = `${formatAmount(total)} RSD`;
+}
+
+document.getElementById("month-prev").addEventListener("click", () => {
+  monthCursor.setMonth(monthCursor.getMonth() - 1);
+  renderCharts();
+});
+
+document.getElementById("month-next").addEventListener("click", () => {
+  monthCursor.setMonth(monthCursor.getMonth() + 1);
+  renderCharts();
+});
+
+function renderCategoryPie() {
+  const pieEl = document.getElementById("category-pie");
+  const legendEl = document.getElementById("category-legend");
+  legendEl.innerHTML = "";
+
+  if (!currentRates) {
+    pieEl.style.background = "var(--border)";
+    const loading = document.createElement("li");
+    loading.textContent = "Загрузка курса…";
+    legendEl.appendChild(loading);
+    return;
+  }
+
+  const { total, items } = getCategoryBreakdown(monthCursor.getFullYear(), monthCursor.getMonth());
+
+  if (total === 0) {
+    pieEl.style.background = "var(--border)";
+    const empty = document.createElement("li");
+    empty.textContent = "Пока нет расходов.";
+    legendEl.appendChild(empty);
+    return;
+  }
+
+  let cumulative = 0;
+  const stops = items.map((item, i) => {
+    const start = cumulative;
+    cumulative += item.percent;
+    const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+    return `${color} ${start}% ${cumulative}%`;
+  });
+  pieEl.style.background = `conic-gradient(${stops.join(", ")})`;
+
+  items.forEach((item, i) => {
+    const li = document.createElement("li");
+
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.background = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+
+    const label = document.createElement("span");
+    label.title = item.category;
+    label.textContent = `${getCategoryEmoji(item.category)} - ${formatAmount(item.amount)} RSD - ${item.percent.toFixed(1)}%`;
+
+    li.appendChild(swatch);
+    li.appendChild(label);
+    legendEl.appendChild(li);
+  });
+}
+
+function renderCharts() {
+  renderMonthCard();
+  renderCategoryPie();
 }
 
 // --- Planned expenses (separate list, does not affect balance) ---
@@ -553,6 +687,7 @@ importFileInput.addEventListener("change", async () => {
   renderTransactions();
   renderPlanned();
   renderTotals();
+  renderCharts();
 });
 
 // --- Init ---
@@ -560,4 +695,5 @@ importFileInput.addEventListener("change", async () => {
 renderBalances();
 renderTransactions();
 renderPlanned();
+renderCharts();
 refreshRates();
